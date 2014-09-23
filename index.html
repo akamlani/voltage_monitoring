@@ -11,39 +11,45 @@
         <div class="row">
             <div class="medium-6 columns">
                 <h4>Control Panel</h4>
-                <form>
-                    <div class="row">
-                        <div class="medium-5 columns">
-                        <label>Board ID<input type="text" placeholder="rfid_board_000"></label>
-                        </div>
-
-                        <div class="medium-5 columns end">
-                        <label>Sampling (ms) <input type="text" placeholder="5000"></label>
-                        </div>
+                <div class="row">
+                    <div class="medium-5 columns">
+                    <label>Board ID<input id="ctl-board-name" type="text" placeholder="rfid_board_000"></label>
                     </div>
 
-                    <div class="row">
-                        <div class="medium-5 columns">
-                            <label>Monitoring</label>
-                            <input id="v_cell1" type="checkbox"><label for="v_cell1">Cell1</label>
-                            <input id="v_cell2" type="checkbox"><label for="v_cell2">Cell2</label>                   
-                        </div>              
-                        <div class="medium-5 columns end">
-                            <label>Metrics</label>
-                            <input id="m_cell1" type="checkbox"><label for="m_cell1">Cell1</label>
-                            <input id="m_cell2" type="checkbox"><label for="m_cell2">Cell2</label>
-                        </div>                                  
+                    <div class="medium-5 columns end">
+                    <label>Sampling (ms) <input id="ctl-samplerate" type="text" placeholder="5000"></label>
                     </div>
-                </form>
+                </div>
+
+                <div class="row">
+                    <div class="medium-5 columns">
+                        <label>Monitoring</label>
+                        <input id="v_cell1" type="checkbox"><label for="v_cell1">Cell1</label>
+                        <input id="v_cell2" type="checkbox"><label for="v_cell2">Cell2</label>                   
+                    </div>              
+                    <div class="medium-5 columns end">
+                        <label>Metrics</label>
+                        <input id="m_cell1" type="checkbox"><label for="m_cell1">Cell1</label>
+                        <input id="m_cell2" type="checkbox"><label for="m_cell2">Cell2</label>
+                    </div>                                  
+                </div>
+
+                <div class="row">
+                    <div class="medium-5 columns">
+                    <button onclick="setConfiguration()">SUBMIT</button>
+                    </div>
+                </div>
             </div>
 
             <div class="medium-6 columns">
                 <h4>Metrics Analytics</h4>
                 <div class="medium-6 columns">
-                    <div id="analytics-metrics-cell1"><h6>Cell1</h6></div>
+                    <h6>Cell1</h6>
+                    <div id="analytics-metrics-cell1"></div>
                 </div>
                 <div class="medium-6 columns end">
-                    <div id="analytics-metrics-cell2"><h6>Cell2</h6></div>      
+                    <h6>Cell2</h6>
+                    <div id="analytics-metrics-cell2"></div>      
                 </div>          
             </div>
         </div>
@@ -60,14 +66,13 @@
             </div>            
         </div>
 
-
-
-
         
         <script src="https://d26b395fwzu5fz.cloudfront.net/3.0.5/keen.min.js"></script>
-        <script src="js/keenio.js"></script>
         <script src="js/vendor/jquery.js"></script>
         <script src="js/foundation.min.js"></script>
+        <script src="js/keenio.js"></script>
+
+
         <script>
             $(document).foundation();
         </script>
