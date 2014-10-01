@@ -39,47 +39,75 @@ function jsonToCsv(objArray) {
 	return str;
 }
 
-function getSamplesFormat(format_type) {
+function downloadCsv(csv_data) {
+		var encodedUri = encodeURI(csv_data);
+
+		var cdate = new Date();
+		var datetime = cdate.getDate() + "/"+  (parseInt(cdate.getMonth())    + 1)
+	    + "/" + cdate.getFullYear() + "@"  + cdate.getHours() + ":"  
+	    + cdate.getMinutes() + ":" + cdate.getSeconds(); 
+
+		var link = document.createElement("a");
+		link.setAttribute("href", "data:text/csv;charset=utf-8,\uFEFF" + encodedUri);
+		link.setAttribute("download", "voltagereport-" + datetime + ".csv");
+		link.click();
+}
+
+function buildTableSample(idx, timestamp, voltage) {
+	var voltage_tabular_row = 	"<tr>" +
+								"<td>" + idx + "</td>" +
+			  					"<td>" + timestamp + "</td>" +
+			  					"<td>" + voltage + "</td>" +
+			  					"</tr>";
+	return voltage_tabular_row;
+}
+
+
+function getSamplesFormat(cell1_on, cell2_on, format_type) {
 	var query_data = {eventCollection: "voltageMeasurement", groupBy: "property"};
 	var extraction = new Keen.Query('extraction', query_data);
 	client.run(extraction, function(response) {
-		var tabular_data = [];
-		tabular_data.push({"id": "BOARD ID", "timestamp": "TIMESTAMP", 
-						   "cell1": "VOLTAGE (Cell1)", "cell2": "VOLTAGE (Cell2)"});
+		var vcell1; var vcell2; var tabular_data = []; var table_data = [];
+		tabular_data.push({"id": "BOARD ID", "timestamp": "TIMESTAMP", "cell1": "VOLTAGE (Cell1)", "cell2": "VOLTAGE (Cell2)"});
+		table_data.push('<thead><tr><th>Sample #</th><th>Timestamp</th><th>Voltage</th></tr></thead>');
 
-		var data_samples = response.result;
-		for(var idx in data_samples) {
-			var entry = data_samples[idx];
-			var row = {"id": config["Board Name"], "timestamp": Date(entry.keen.timestamp), 
-					   "cell1": entry.voltage.cell1, "cell2": entry.voltage.cell2};
-			tabular_data.push(row);
+		for(var idx in response.result) {
+			var entry = response.result[idx];
+			if (format_type == "csv") {	
+				var row = {"id": config["Board Name"], "timestamp": Date(entry.keen.timestamp)};
+				if(cell1_on != undefined) {row["cell1"] =  entry.voltage.cell1;}
+				if(cell2_on != undefined) {row["cell2"] =  entry.voltage.cell2;}
+				tabular_data.push(row);
+			}
+			if (format_type == "table") {
+				if(cell1_on != undefined) { 
+					var row = buildTableSample(idx, Date(entry.keen.timestamp), entry.voltage.cell1);
+					table_data.push(row);
+				}
+				if(cell2_on != undefined) { 
+					var row = buildTableSample(idx, Date(entry.keen.timestamp), entry.voltage.cell2);
+					table_data.push(row);
+				}
+			}
 		}
-		//option: write to csv format
-		var jsonObject = JSON.stringify(tabular_data);
-		var csv_data = jsonToCsv(jsonObject);
-		
-/*		
-var a = document.createElement('a');
-a.href     = 'data:attachment/csv,' + csv_data;
-a.target   ='_blank';
-a.download = 'myFile.csv,' + encodeURIComponent(csv_data); ;
-a.innerHTML = "Click me to download the file.";
-document.body.appendChild(a);
-*/
 
-		//option: keep as json format
+		
+		if (format_type == "csv") {
+			var jsonObject = JSON.stringify(tabular_data);
+			var csv_data = jsonToCsv(jsonObject);
+			downloadCsv(csv_data);
+		}
+		if (format_type == "table") {
+			//$("#battery-samples-cell1").append(table_data);
+			//$("#battery-samples-cell2").append(table_data);
+		}
 	});
 }
 
 
-function displaySamples(data_samples, max_samples) {
-	for(var idx in data_samples) {
-		var entry = data_samples[idx];
-		var row = {"id": config["Board Name"], "timestamp": entry.keen.timestamp, 
-				   "cell1": entry.voltage.cell1, "cell2": entry.voltage.cell2};
 
-		//Create Table to Push into Google Docs
-		tabular_data.push(row);
+
+function displaySamples(data_samples, max_samples) {
 /*		
 		if(idx < max_samples) {
 			var cell1_entry = "<tr>" +
@@ -98,10 +126,6 @@ function displaySamples(data_samples, max_samples) {
 			$("#battery-samples-cell2").append(cell2_entry);
 		}
 */
-	}
-	//Create CSV
-
-
 }
 
 function metricsForCells(target_property_val) {
@@ -143,12 +167,6 @@ function metricsForCells(target_property_val) {
 }
 
 
-function monitorForCells() {
-	var json_data = getSamplesFormat("csv");
-	
-
-}
-
 function setConfiguration() {
 	config =  {
 		"Board Name": document.getElementById('ctl-board-name').value,
@@ -161,11 +179,10 @@ function setConfiguration() {
 	//Metrics
 	if(config["Metrics Cell1"]) { metricsForCells("voltage.cell1"); }
 	if(config["Metrics Cell2"]) { metricsForCells("voltage.cell2"); }
-	//Voltage Monitoring
-	if(config["Monitor Cell1"]) { monitorForCells("voltage.cell1"); }
-	//if(config["Monitor Cell2"]) {}
-	//CSV Format
-	//getSamplesFormat("json");
+	//Voltage Monitoring to CSV
+	getSamplesFormat(config["Monitor Cell1"], config["Monitor Cell2"], "csv"); 
+	//Display Tables of Top 5 Most Recent Samples
+
 }
 
 
@@ -174,15 +191,11 @@ function setConfiguration() {
 
 
 /*
-var tabular_data = [];
-var samples = getSamples(client, tabular_data);
 var data = client.run(samples, function(response){
 	var keen_json = response.result;
 	var header = '<thead><tr><th>Sample #</th><th>Timestamp</th><th>Voltage</th></tr></thead>';
 	$("#battery-samples-cell1").append(header);
 	$("#battery-samples-cell2").append(header);
-	//display samples
 	displaySamples(keen_json, 5);
-	//Push into Google Docs - Google Spreadsheets "Add-Ons"
 });
 */
