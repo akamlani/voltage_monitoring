@@ -106,37 +106,12 @@ function getSamplesFormat(cell1_on, cell2_on, format_type) {
 
 
 
-
-function displaySamples(data_samples, max_samples) {
-/*		
-		if(idx < max_samples) {
-			var cell1_entry = "<tr>" +
-							  "<td>" + idx + "</td>" +
-							  "<td>" + new Date(entry.keen.timestamp).toUTCString() + "</td>" +
-							  "<td>" + entry.voltage.cell1 + "</td>" +
-							  "</tr>";
-
-			var cell2_entry = "<tr>" +
-							  "<td>" + idx + "</td>" +
-							  "<td>" + new Date(entry.keen.timestamp).toUTCString() + "</td>" +
-							  "<td>" + entry.voltage.cell2 + "</td>" +
-							  "</tr>";
-
-			$("#battery-samples-cell1").append(cell1_entry);
-			$("#battery-samples-cell2").append(cell2_entry);
-		}
-*/
-}
-
 function metricsForCells(target_property_val) {
 	//add timeframe: "today"
 	//add interval:	
 	var count_query_data = {eventCollection: "voltageMeasurement", groupBy: "property"};
-
-	var metric_query_data = {eventCollection: "voltageMeasurement", groupBy: "property", 
-							 targetProperty: target_property_val};
-	var metric_percentile_data = {eventCollection: "voltageMeasurement", groupBy: "property", 
-							 	  targetProperty: target_property_val, percentile: "95.0"};
+	var metric_query_data = {eventCollection: "voltageMeasurement", groupBy: "property", targetProperty: target_property_val};
+	var metric_percentile_data = {eventCollection: "voltageMeasurement", groupBy: "property", targetProperty: target_property_val, percentile: "95.0"};
 
 	var count_samples = new Keen.Query("count", count_query_data);	
 	var metrics_max = new Keen.Query("maximum", metric_query_data);
@@ -145,10 +120,8 @@ function metricsForCells(target_property_val) {
 	var metrics_median = new Keen.Query("median", metric_query_data);
 	var metrics_percentile = new Keen.Query("percentile", metric_percentile_data);
 
-
 	var metric_label = "";
-	var labels = ["Number of Records: ", "Minimum Voltage: ", "Maximum Voltage: ", 
-			  	  "Average Voltage: ", "Median Voltage: ", "Percentile Voltage (95%): "];
+	var labels = ["Number of Records: ", "Minimum Voltage: ", "Maximum Voltage: ", "Average Voltage: ", "Median Voltage: ", "Percentile Voltage (95%): "];
 	var mashup_query = [count_samples, metrics_min, metrics_max, metrics_avg, metrics_median, metrics_percentile];
 	var mashup = client.run(mashup_query, function(response) {
 		for(var idx in response) {
@@ -164,8 +137,10 @@ function metricsForCells(target_property_val) {
 			$("#analytics-metrics-cell2").html( (metric_label) );
 		}
 	});
-}
 
+	//alternative method of feeding in a list of Queries
+
+}
 
 function setConfiguration() {
 	config =  {
@@ -182,20 +157,28 @@ function setConfiguration() {
 	//Voltage Monitoring to CSV
 	getSamplesFormat(config["Monitor Cell1"], config["Monitor Cell2"], "csv"); 
 	//Display Tables of Top 5 Most Recent Samples
-
 }
 
 
+function estimateDischarge() {
+	//Retrieve Most Recent Voltage Sample: Battery Cell1, Battery Cell2
+	//Read in CSV Data of Discharge Information
+	//Calculate Remaining Capacity based on current Voltage
+	//Display Used and Remaining Capacity
+	//Display Hours and Days of Remaining Capacity
+	//Display Percentage based on Fraction of Capacity
+}
+
+//repositories:
+//http://github.com/keenlabs/keen-js
 
 
+//graphs:
+//client.draw(query, selector, config)
+//client.draw(query, $("#chart-wrapper"), {chartType: "columnchart", title: "Custom chart title"});
 
 
-/*
-var data = client.run(samples, function(response){
-	var keen_json = response.result;
-	var header = '<thead><tr><th>Sample #</th><th>Timestamp</th><th>Voltage</th></tr></thead>';
-	$("#battery-samples-cell1").append(header);
-	$("#battery-samples-cell2").append(header);
-	displaySamples(keen_json, 5);
-});
-*/
+//client initiated (asynchronously) event via electric imp method: 
+//eventData <- {id = board_id, voltage = {cell1 = voltage_data["cell1"], cell2 = voltage_data["cell2"]} };
+//keen.sendEvent("voltageMeasurement", eventData, function(resp) {server.log("Response KeenIO: " + resp.statuscode + ": " + resp.body);});
+
