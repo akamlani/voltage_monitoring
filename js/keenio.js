@@ -64,56 +64,67 @@ function buildTableSample(idx, timestamp, voltage) {
 
 
 function getSamplesFormat(cell1_on, cell2_on, format_type) {
-	var query_data = {eventCollection: "voltageMeasurement", groupBy: "property"};
+	//query for the most recent results (top 10)
+	//API: Extract Most Recent Events: 
+	//https://<keen.io base>/<project id>/queries/extraction?api_key=<read_key>&event_collection=<event_collection>&latest=<number>
+	var query_data = {eventCollection: "voltageMeasurement", latest: 10};
 	var extraction = new Keen.Query('extraction', query_data);
 	client.run(extraction, function(response) {
-		var vcell1; var vcell2; var tabular_data = []; var table_data = [];
+		var row; var vcell1; var vcell2; var tabular_data = []; var table_data_c1 = []; var table_data_c2 = [];
 		tabular_data.push({"id": "BOARD ID", "timestamp": "TIMESTAMP", "cell1": "VOLTAGE (Cell1)", "cell2": "VOLTAGE (Cell2)"});
-		table_data.push('<thead><tr><th>Sample #</th><th>Timestamp</th><th>Voltage</th></tr></thead>');
 
 		for(var idx in response.result) {
 			var entry = response.result[idx];
 			if (format_type == "csv") {	
-				var row = {"id": config["Board Name"], "timestamp": Date(entry.keen.timestamp)};
-				if(cell1_on != undefined) {row["cell1"] =  entry.voltage.cell1;}
-				if(cell2_on != undefined) {row["cell2"] =  entry.voltage.cell2;}
+				//ISO-8601 Format: {YYYY}-{MM}-{DD}T{hh}:{mm}:{ss}.{SSS}-{TZ}
+				row = {"id": config["Board Name"], "timestamp": Date(entry.keen.timestamp)};
+				if(cell1_on) {row["cell1"] =  entry.voltage.cell1;}
+				if(cell2_on) {row["cell2"] =  entry.voltage.cell2;}
 				tabular_data.push(row);
 			}
 			if (format_type == "table") {
-				if(cell1_on != undefined) { 
-					var row = buildTableSample(idx, Date(entry.keen.timestamp), entry.voltage.cell1);
-					table_data.push(row);
+				// store top 10 results
+				if(parseInt(idx) < 10) {			
+					if(cell1_on) { 
+						row = buildTableSample(idx, Date(entry.keen.timestamp), entry.voltage.cell1);
+						table_data_c1.push(row);
+					}
+					if(cell2_on) { 
+						row = buildTableSample(idx, Date(entry.keen.timestamp), entry.voltage.cell2);
+						table_data_c2.push(row);
+					}
 				}
-				if(cell2_on != undefined) { 
-					var row = buildTableSample(idx, Date(entry.keen.timestamp), entry.voltage.cell2);
-					table_data.push(row);
-				}
+				else { break; }
 			}
 		}
 
-		
 		if (format_type == "csv") {
 			var jsonObject = JSON.stringify(tabular_data);
 			var csv_data = jsonToCsv(jsonObject);
 			downloadCsv(csv_data);
 		}
 		if (format_type == "table") {
-			//$("#battery-samples-cell1").append(table_data);
-			//$("#battery-samples-cell2").append(table_data);
+			if(cell1_on) { $("#battery-samples-cell1").append(table_data_c1); }
+			if(cell2_on) { $("#battery-samples-cell2").append(table_data_c2); }
 		}
-	});
+	});//end keen.io run sequence
 }
 
 
 
 function metricsForCells(target_property_val) {
-	//add timeframe: "today"
-	//add interval:	
+	//add timeframe: "today" [to filter based on the time the event occured]
+	//add interval:			 [specifies size of time block to break response into]
+	//timeframe + interval --> turns request into a Series
+
+	//add filters:           [narrow down events based on 'event property' values]
+	//add group_by:          [specifies the name of a property to group results by]
 	var count_query_data = {eventCollection: "voltageMeasurement", groupBy: "property"};
 	var metric_query_data = {eventCollection: "voltageMeasurement", groupBy: "property", targetProperty: target_property_val};
 	var metric_percentile_data = {eventCollection: "voltageMeasurement", groupBy: "property", targetProperty: target_property_val, percentile: "95.0"};
 
 	var count_samples = new Keen.Query("count", count_query_data);	
+	var count_unique  = new Keen.Query("count_unique", metric_query_data);
 	var metrics_max = new Keen.Query("maximum", metric_query_data);
 	var metrics_min = new Keen.Query("minimum", metric_query_data);
 	var metrics_avg = new Keen.Query("average", metric_query_data);
@@ -121,8 +132,8 @@ function metricsForCells(target_property_val) {
 	var metrics_percentile = new Keen.Query("percentile", metric_percentile_data);
 
 	var metric_label = "";
-	var labels = ["Number of Records: ", "Minimum Voltage: ", "Maximum Voltage: ", "Average Voltage: ", "Median Voltage: ", "Percentile Voltage (95%): "];
-	var mashup_query = [count_samples, metrics_min, metrics_max, metrics_avg, metrics_median, metrics_percentile];
+	var labels = ["Number of Records: ", "Unique Records", "Minimum Voltage: ", "Maximum Voltage: ", "Average Voltage: ", "Median Voltage: ", "Percentile Voltage (95%): "];
+	var mashup_query = [count_samples, count_unique, metrics_min, metrics_max, metrics_avg, metrics_median, metrics_percentile];
 	var mashup = client.run(mashup_query, function(response) {
 		for(var idx in response) {
 			var metric = response[idx].result[0].result;
@@ -139,11 +150,12 @@ function metricsForCells(target_property_val) {
 	});
 
 	//alternative method of feeding in a list of Queries
+	//properties: ["keen.timestamp", "keen.created_at"]
 
 }
 
 function setConfiguration() {
-	config =  {
+	var config =  {
 		"Board Name": document.getElementById('ctl-board-name').value,
 		"Sample Period": document.getElementById('ctl-samplerate').value,
 		"Monitor Cell1": $("#v_cell1").prop('checked'),
@@ -151,12 +163,19 @@ function setConfiguration() {
 		"Metrics Cell1": $("#m_cell1").prop('checked'),
 		"Metrics Cell2": $("#m_cell2").prop('checked'),
 	};
+	//Clear Style Entries
+	$("#analytics-metrics-cell1").html("");
+	$("#analytics-metrics-cell2").html("");
 	//Metrics
 	if(config["Metrics Cell1"]) { metricsForCells("voltage.cell1"); }
 	if(config["Metrics Cell2"]) { metricsForCells("voltage.cell2"); }
 	//Voltage Monitoring to CSV
 	getSamplesFormat(config["Monitor Cell1"], config["Monitor Cell2"], "csv"); 
-	//Display Tables of Top 5 Most Recent Samples
+	//Display Tables of Top 10 Most Recent Samples
+	var header = '<thead><tr><th>Sample #</th><th>Timestamp</th><th>Voltage</th></tr></thead>';
+	$("#battery-samples-cell1").html(header);
+	$("#battery-samples-cell2").html(header);
+	getSamplesFormat(config["Monitor Cell1"], config["Monitor Cell2"], "table"); 
 }
 
 
@@ -172,11 +191,17 @@ function estimateDischarge() {
 //repositories:
 //http://github.com/keenlabs/keen-js
 
+//keen.io api documentation
+//http://keen.io/docs/api/reference
 
 //graphs:
 //client.draw(query, selector, config)
 //client.draw(query, $("#chart-wrapper"), {chartType: "columnchart", title: "Custom chart title"});
 
+//questions
+//1. csv as synchronous, not via email
+//2. real-time sychronization and push from server to client
+//3. cohorts, conversion
 
 //client initiated (asynchronously) event via electric imp method: 
 //eventData <- {id = board_id, voltage = {cell1 = voltage_data["cell1"], cell2 = voltage_data["cell2"]} };
